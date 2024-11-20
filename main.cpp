@@ -5,6 +5,7 @@
 #include <string>
 #include <curl/curl.h>
 #include <chrono>
+#include <thread>
 #include <vector>
 
 const int UPDATE_DELAY = 60;  // How many seconds to wait before updating
@@ -43,58 +44,36 @@ int main(int argc, char* argv[]) {
   std::string rssContent;
   rapidxml::xml_document<> doc; // Create a document object
   std::vector<Event> events;  // A vector to hold events
-  events.reserve(8);  // Reserve space for 8 events to start
-
-
-  std::chrono::time_point start = std::chrono::steady_clock::now(); // Mark current time, we want to read the file every x seconds
-  fetchAndParse(rssContent, doc, url);
-
-  rapidxml::xml_node<> *root = doc.first_node("rss"); // Define root entry point
-  rapidxml::xml_node<> *channel = root->first_node("channel"); // Navigate to channel
-
-  // Fill the vector
-  for(rapidxml::xml_node<>* item = channel->first_node("item"); item; item = item->next_sibling()) {
-    // Push the item to the end of the vector
-    events.push_back(getEvent(item));
-  }
-
-  // Print the vector
-  std::cout << '\n';
-  for(auto& event : events) {
-    std::cout << event << "\n\n";
-  }
-  auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-  std::cout << "Last Updated: " << ctime(&time) << std::endl;
+  rapidxml::xml_node<> *root;
+  rapidxml::xml_node<> *channel;
 
   while (true) {
-    if((std::chrono::steady_clock::now() - start) > std::chrono::seconds(60)) { // If 60 seconds have passed
-      // Get updated data from feed
-      fetchAndParse(rssContent, doc, url);
-      root = doc.first_node("rss"); // Define root entry point
-      channel = root->first_node("channel"); // Navigate to channel
-      
-      //Clear the vector
-      size_t size = events.capacity();
-      events.clear();
-      events.reserve(size);
+    // Get updated data from feed
+    fetchAndParse(rssContent, doc, url);
+    root = doc.first_node("rss"); // Define root entry point
+    channel = root->first_node("channel"); // Navigate to channel
+    
+    //Clear the vector
+    size_t size = events.capacity();
+    events.clear();
 
-      // Fill the vector
-      for(rapidxml::xml_node<>* item = channel->first_node("item"); item; item = item->next_sibling()) {
-        // Push the item to the end of the vector
-        events.push_back(getEvent(item));
-      }
-
-      // Print the vector
-      std::cout << '\n';
-      for(auto& event : events) {
-        std::cout << event << "\n\n";
-      }
-      
-      // Reset start time
-      start = std::chrono::steady_clock::now();
-      auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
-      std::cout << "Last Updated: " << ctime(&time) << std::endl;
+    // Fill the vector
+    for(rapidxml::xml_node<>* item = channel->first_node("item"); item; item = item->next_sibling()) {
+      // Push the item to the end of the vector
+      events.push_back(getEvent(item));
     }
+
+    // Print the vector
+    std::cout << '\n';
+    for(auto& event : events) {
+      std::cout << event << "\n\n";
+    }
+    
+    // Reset start time
+    auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::cout << "Last Updated: " << ctime(&time) << std::endl;
+
+    std::this_thread::sleep_for(std::chrono::seconds(60));
   }
 
   return EXIT_SUCCESS;
