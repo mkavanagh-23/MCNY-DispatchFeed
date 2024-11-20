@@ -1,11 +1,11 @@
 #include "RapidXML/rapidxml.hpp"
-#include "RapidXML/rapidxml_utils.hpp"
 #include <cstdlib>
+#include <ctime>
 #include <iostream>
 #include <string>
 #include <curl/curl.h>
 #include <chrono>
-#include <string_view>
+#include <vector>
 
 const int UPDATE_DELAY = 60;  // How many seconds to wait before updating
 
@@ -34,44 +34,67 @@ std::string fetchRSSFeed(const std::string& url);
 void fetchAndParse(std::string& contentBuffer, rapidxml::xml_document<>& document, const std::string& url);
 
 int main(int argc, char* argv[]) {
+  std::string url;
   // Check if URL argument is provided
-  if (argc != 2) {
-    std::cerr << "Usage: " << argv[0] << " <RSS_URL>" << std::endl;
-    return EXIT_FAILURE;
-  }
-
-  std::string url = argv[1];
+  if (argc >= 2)
+    url = argv[1];
+  else
+    url = "https://www.monroecounty.gov/incidents911.rss";
   std::string rssContent;
   rapidxml::xml_document<> doc; // Create a document object
+  std::vector<Event> events;  // A vector to hold events
+  events.reserve(8);  // Reserve space for 8 events to start
+
 
   std::chrono::time_point start = std::chrono::steady_clock::now(); // Mark current time, we want to read the file every x seconds
   fetchAndParse(rssContent, doc, url);
 
-  //while (true) {
-  //  if((std::chrono::steady_clock::now() - start) > std::chrono::seconds(60)) {
-  //  fetchAndParse(rssContent, doc, url);
-      // Clear the vector
-      // Fill the vector
-  //  }
-  
-  //}
-
-
-
   rapidxml::xml_node<> *root = doc.first_node("rss"); // Define root entry point
   rapidxml::xml_node<> *channel = root->first_node("channel"); // Navigate to channel
-  
-  std::vector<Event> events;
-  // Iterate over each <item> node
+
+  // Fill the vector
   for(rapidxml::xml_node<>* item = channel->first_node("item"); item; item = item->next_sibling()) {
-    
     // Push the item to the end of the vector
     events.push_back(getEvent(item));
   }
 
-  // And now print each event to confirm we are parsing correctly
+  // Print the vector
+  std::cout << '\n';
   for(auto& event : events) {
     std::cout << event << "\n\n";
+  }
+  auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+  std::cout << "Last Updated: " << ctime(&time) << std::endl;
+
+  while (true) {
+    if((std::chrono::steady_clock::now() - start) > std::chrono::seconds(60)) { // If 60 seconds have passed
+      // Get updated data from feed
+      fetchAndParse(rssContent, doc, url);
+      root = doc.first_node("rss"); // Define root entry point
+      channel = root->first_node("channel"); // Navigate to channel
+      
+      //Clear the vector
+      size_t size = events.capacity();
+      events.clear();
+      events.reserve(size);
+
+      // Fill the vector
+      for(rapidxml::xml_node<>* item = channel->first_node("item"); item; item = item->next_sibling()) {
+        // Push the item to the end of the vector
+        events.push_back(getEvent(item));
+      }
+
+      // Print the vector
+      std::cout << '\n';
+      for(auto& event : events) {
+        std::cout << event << "\n\n";
+      }
+      
+      // Reset start time
+      start = std::chrono::steady_clock::now();
+      auto time = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+      std::cout << "Last Updated: " << ctime(&time) << std::endl;
+    }
   }
 
   return EXIT_SUCCESS;
