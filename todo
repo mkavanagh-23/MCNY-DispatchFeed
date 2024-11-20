@@ -1,0 +1,17 @@
+// Todo:
+  // Conditional video stream logic based on location
+  // Each stream should be held within its own class object
+  // Logic to check if stream is already loaded
+  // Check data against existing array of events, update if needed
+  // Clear stream when object is deleted
+    // Extract PID as return value from bash script and store in object
+    // sigkill $PID
+    // or do we want to run streams as jobs?
+  // Dwindle layouts
+  // Set descriptor string
+  // Render string over lavfi-complex (https://stackoverflow.com/questions/17623676/text-on-video-ffmpeg)
+
+    // To call a system-level script invoke the system() function:
+    // system("path/to/script.sh");
+
+  tzset();
